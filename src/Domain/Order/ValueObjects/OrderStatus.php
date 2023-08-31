@@ -8,7 +8,7 @@ final class OrderStatus
     public const PAID = 'paid';
     public const CANCELED = 'canceled';
 
-    private function __construct(private readonly string $status)
+    private function __construct(private readonly string $value)
     {
     }
 
@@ -29,26 +29,26 @@ final class OrderStatus
 
     public function isPending(): bool
     {
-        return $this->status === self::PENDING;
+        return $this->value === self::PENDING;
     }
 
     public function isPaid(): bool
     {
-        return $this->status === self::PAID;
+        return $this->value === self::PAID;
     }
 
     public function isCanceled(): bool
     {
-        return $this->status === self::CANCELED;
+        return $this->value === self::CANCELED;
     }
 
-    public function status(): string
+    public function value(): string
     {
-        return $this->status;
+        return $this->value;
     }
 
     public function __toString(): string
     {
-        return $this->status;
+        return $this->value;
     }
 }
