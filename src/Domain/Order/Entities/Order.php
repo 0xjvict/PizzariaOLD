@@ -8,6 +8,18 @@ use Domain\Order\ValueObjects\OrderStatus;
 
 final class Order
 {
+
+    private readonly OrderId $id;
+    private readonly CustomerId $customerId;
+    private OrderStatus $status;
+    /**
+     * @var OrderItem[]
+     */
+    private readonly array $items;
+    private readonly float $total;
+    private ?Invoice $invoice = null;
+    private ?Delivery $delivery = null;
+
     /**
      * @param OrderId $id
      * @param CustomerId $customerId
@@ -15,14 +27,19 @@ final class Order
      * @param OrderItem[] $items
      * @param float $total
      */
-    private function __construct(
-        private readonly OrderId    $id,
-        private readonly CustomerId $customerId,
-        private OrderStatus         $status,
-        private readonly array      $items,
-        private readonly float      $total,
+    public function __construct(
+        OrderId     $id,
+        CustomerId  $customerId,
+        OrderStatus $status,
+        array       $items,
+        float       $total,
     )
     {
+        $this->id = $id;
+        $this->customerId = $customerId;
+        $this->status = $status;
+        $this->items = $items;
+        $this->total = $total;
     }
 
     /**
@@ -71,7 +88,7 @@ final class Order
         );
     }
 
-    public function paid(): void
+    public function pay(Invoice $invoice, Delivery $delivery): void
     {
         if ($this->status->isPaid()) {
             throw new \DomainException('Order is already paid.');
@@ -79,6 +96,8 @@ final class Order
             throw new \DomainException('Order is canceled.');
         }
 
+        $this->invoice = $invoice;
+        $this->delivery = $delivery;
         $this->status = OrderStatus::paid();
     }
 
@@ -117,5 +136,15 @@ final class Order
     public function total(): float
     {
         return $this->total;
+    }
+
+    public function invoice(): ?Invoice
+    {
+        return $this->invoice;
+    }
+
+    public function delivery(): ?Delivery
+    {
+        return $this->delivery;
     }
 }
