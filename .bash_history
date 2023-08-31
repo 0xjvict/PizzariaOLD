@@ -1,3 +1,0 @@
-exit
-ls -la
-exit
