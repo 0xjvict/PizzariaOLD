@@ -2,6 +2,13 @@
 
 namespace Domain\Order\Entities;
 
+use Brick\Math\Exception\MathException;
+use Brick\Math\Exception\NumberFormatException;
+use Brick\Math\Exception\RoundingNecessaryException;
+use Brick\Money\Exception\MoneyMismatchException;
+use Brick\Money\Exception\UnknownCurrencyException;
+use Domain\_Shared\Abstractions\Money;
+use Domain\_Shared\ValueObjects\BrickMoney;
 use Domain\Customer\ValueObjects\CustomerId;
 use Domain\Order\ValueObjects\OrderId;
 use Domain\Order\ValueObjects\OrderStatus;
@@ -16,7 +23,7 @@ final class Order
      * @var OrderItem[]
      */
     private readonly array $items;
-    private readonly float $total;
+    private readonly Money $total;
     private ?Invoice $invoice = null;
     private ?Delivery $delivery = null;
 
@@ -25,14 +32,14 @@ final class Order
      * @param CustomerId $customerId
      * @param OrderStatus $status
      * @param OrderItem[] $items
-     * @param float $total
+     * @param Money $total
      */
     public function __construct(
         OrderId     $id,
         CustomerId  $customerId,
         OrderStatus $status,
         array       $items,
-        float       $total,
+        Money       $total,
     )
     {
         $this->id = $id;
@@ -49,9 +56,9 @@ final class Order
      */
     public static function place(CustomerId $customerId, array $items): self
     {
-        $total = 0.0;
+        $total = BrickMoney::createFromBrl('0.0');
         foreach ($items as $item) {
-            $total += $item->subTotal();
+            $total = $total->add($item->subTotal());
         }
 
         return new self(
@@ -68,7 +75,7 @@ final class Order
      * @param CustomerId $customerId
      * @param OrderStatus $status
      * @param OrderItem[] $items
-     * @param float $total
+     * @param Money $total
      * @return self
      */
     public static function restore(
@@ -76,7 +83,7 @@ final class Order
         CustomerId  $customerId,
         OrderStatus $status,
         array       $items,
-        float       $total,
+        Money       $total,
     ): self
     {
         return new self(
@@ -133,7 +140,7 @@ final class Order
         return $this->items;
     }
 
-    public function total(): float
+    public function total(): Money
     {
         return $this->total;
     }

@@ -2,6 +2,7 @@
 
 namespace Domain\Order\Entities;
 
+use Domain\_Shared\Abstractions\Money;
 use Domain\Order\ValueObjects\OrderItemId;
 use Domain\Product\ValueObjects\ProductId;
 
@@ -11,21 +12,46 @@ final class OrderItem
         private readonly OrderItemId $id,
         private readonly ProductId   $productId,
         private readonly string      $name,
-        private readonly float       $price,
+        private readonly Money       $price,
         private readonly int         $quantity,
-        private readonly float       $subTotal,
+        private readonly Money       $subTotal,
     )
     {
     }
 
-    public static function create(ProductId $productId, string $name, float $price, int $quantity): self
+    public static function create(
+        ProductId $productId,
+        string    $name,
+        Money     $price,
+        int       $quantity
+    ): self
     {
-        return new self(OrderItemId::generate(), $productId, $name, $price, $quantity, $price * $quantity);
+        return new self(
+            id: OrderItemId::generate(),
+            productId: $productId,
+            name: $name,
+            price: $price,
+            quantity: $quantity,
+            subTotal: $price->multiply($quantity),
+        );
     }
 
-    public static function restore(OrderItemId $id, ProductId $productId, string $name, float $price, int $quantity): self
+    public static function restore(
+        OrderItemId $id,
+        ProductId   $productId,
+        string      $name,
+        Money       $price,
+        int         $quantity
+    ): self
     {
-        return new self($id, $productId, $name, $price, $quantity, $price * $quantity);
+        return new self(
+            $id,
+            $productId,
+            $name,
+            $price,
+            $quantity,
+            $price->multiply($quantity),
+        );
     }
 
     public function id(): OrderItemId
@@ -43,7 +69,7 @@ final class OrderItem
         return $this->name;
     }
 
-    public function price(): float
+    public function price(): Money
     {
         return $this->price;
     }
@@ -53,7 +79,7 @@ final class OrderItem
         return $this->quantity;
     }
 
-    public function subTotal(): float
+    public function subTotal(): Money
     {
         return $this->subTotal;
     }

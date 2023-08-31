@@ -1,29 +1,29 @@
 <?php
 
+use Domain\_Shared\ValueObjects\BrickMoney;
 use Domain\Customer\ValueObjects\CustomerId;
 use Domain\Order\Entities\Delivery;
 use Domain\Order\Entities\Invoice;
 use Domain\Order\Entities\Order;
 use Domain\Order\Entities\OrderItem;
 use Domain\Order\ValueObjects\OrderId;
-use Domain\Order\ValueObjects\OrderStatus;
 use Domain\Order\ValueObjects\ShippingAddress;
 use Domain\Product\ValueObjects\ProductId;
 
 $faker = Faker\Factory::create('pt_BR');
 
-it('should place an order', function () use ($faker){
+it('should place an order', function () use ($faker) {
     $items = [
         OrderItem::create(
             ProductId::generate(),
             'Product 1',
-            100,
+            BrickMoney::createFromBrl('100.0'),
             1
         ),
         OrderItem::create(
             ProductId::generate(),
             'Product 2',
-            200,
+            BrickMoney::createFromBrl('200.0'),
             2
         ),
     ];
@@ -35,21 +35,21 @@ it('should place an order', function () use ($faker){
     expect($order->customerId())->toBe($customerId);
     expect($order->status()->value())->toBe('pending');
     expect($order->items())->toBe($items);
-    expect($order->total())->toBe(500.0);
+    expect($order->total()->amount())->toBe(BrickMoney::createFromBrl('500.0')->amount());
 });
 
-it('should pay an order', function () use ($faker){
+it('should pay an order', function () use ($faker) {
     $items = [
         OrderItem::create(
             ProductId::generate(),
             'Product 1',
-            100,
+            BrickMoney::createFromBrl('100.0'),
             1
         ),
         OrderItem::create(
             ProductId::generate(),
             'Product 2',
-            200,
+            BrickMoney::createFromBrl('200.0'),
             2
         ),
     ];
@@ -57,7 +57,12 @@ it('should pay an order', function () use ($faker){
     $customerId = CustomerId::generate();
     $order = Order::place($customerId, $items);
 
-    $invoice = Invoice::create(orderId: $order->id(), urlXml: 'https://www.w3schools.com/xml/note.xml', urlDanfe: 'https://www.w3schools.com/xml/note.xml');
+    $invoice = Invoice::create(
+        orderId: $order->id(),
+        urlXml: 'https://www.w3schools.com/xml/note.xml',
+        urlDanfe: 'https://www.w3schools.com/xml/note.xml'
+    );
+
     $address = new ShippingAddress(
         street: $faker->streetName(),
         number: $faker->buildingNumber(),
@@ -83,13 +88,13 @@ it('should cancel an order after be placed', function () use ($faker) {
         OrderItem::create(
             ProductId::generate(),
             'Product 1',
-            100,
+            BrickMoney::createFromBrl('100.0'),
             1
         ),
         OrderItem::create(
             ProductId::generate(),
             'Product 2',
-            200,
+            BrickMoney::createFromBrl('200.0'),
             2
         ),
     ];
