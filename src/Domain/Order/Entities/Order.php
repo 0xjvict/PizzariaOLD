@@ -2,145 +2,114 @@
 
 namespace Domain\Order\Entities;
 
-use Brick\Math\Exception\MathException;
-use Brick\Math\Exception\NumberFormatException;
-use Brick\Math\Exception\RoundingNecessaryException;
-use Brick\Money\Exception\MoneyMismatchException;
-use Brick\Money\Exception\UnknownCurrencyException;
+use DomainException;
+use DateTimeImmutable;
+use Application\Order\UseCases\PayOrder\PayOrderCommand;
+use Application\Order\UseCases\PlaceOrder\PlaceOrderCommand;
 use Domain\_Shared\Abstractions\Money;
 use Domain\_Shared\ValueObjects\BrickMoney;
 use Domain\Customer\ValueObjects\CustomerId;
+use Domain\Order\Events\OrderPaid;
+use Domain\Order\Events\OrderPlaced;
 use Domain\Order\ValueObjects\OrderId;
 use Domain\Order\ValueObjects\OrderStatus;
+use EventSauce\EventSourcing\AggregateRoot;
+use EventSauce\EventSourcing\AggregateRootBehaviour;
 
-final class Order
+final class Order implements AggregateRoot
 {
+    use AggregateRootBehaviour;
 
-    private readonly OrderId $id;
-    private readonly CustomerId $customerId;
-    private OrderStatus $status;
-    /**
-     * @var OrderItem[]
-     */
-    private readonly array $items;
-    private readonly Money $total;
+    private ?CustomerId $customerId = null;
+    private ?OrderStatus $status = null;
+    /* @var OrderItem[] */
+    private ?array $items = null;
+    private ?Money $total = null;
     private ?Invoice $invoice = null;
     private ?Delivery $delivery = null;
+    private ?DateTimeImmutable $placedAt = null;
+    private ?DateTimeImmutable $paidAt = null;
 
-    /**
-     * @param OrderId $id
-     * @param CustomerId $customerId
-     * @param OrderStatus $status
-     * @param OrderItem[] $items
-     * @param Money $total
-     */
-    public function __construct(
-        OrderId     $id,
-        CustomerId  $customerId,
-        OrderStatus $status,
-        array       $items,
-        Money       $total,
-    )
+    public static function place(PlaceOrderCommand $command): self
     {
-        $this->id = $id;
-        $this->customerId = $customerId;
-        $this->status = $status;
-        $this->items = $items;
-        $this->total = $total;
-    }
+        $order = new self($command->orderId);
 
-    /**
-     * @param CustomerId $customerId
-     * @param OrderItem[] $items
-     * @return self
-     */
-    public static function place(CustomerId $customerId, array $items): self
-    {
         $total = BrickMoney::createFromBrl('0.0');
-        foreach ($items as $item) {
+        foreach ($command->items as $item) {
             $total = $total->add($item->subTotal());
         }
 
-        return new self(
-            id: OrderId::generate(),
-            customerId: $customerId,
+        $orderPlaced = new OrderPlaced(
+            orderId: $command->orderId,
+            customerId: $command->customerId,
             status: OrderStatus::pending(),
-            items: $items,
+            items: $command->items,
             total: $total,
+            placedAt: $command->placedAt
         );
+        $order->recordThat($orderPlaced);
+
+        return $order;
     }
 
-    /**
-     * @param OrderId $id
-     * @param CustomerId $customerId
-     * @param OrderStatus $status
-     * @param OrderItem[] $items
-     * @param Money $total
-     * @return self
-     */
-    public static function restore(
-        OrderId     $id,
-        CustomerId  $customerId,
-        OrderStatus $status,
-        array       $items,
-        Money       $total,
-    ): self
+    public function pay(PayOrderCommand $command): self
     {
-        return new self(
-            id: $id,
-            customerId: $customerId,
-            status: $status,
-            items: $items,
-            total: $total,
-        );
-    }
-
-    public function pay(Invoice $invoice, Delivery $delivery): void
-    {
+        // TODO: talvez seja melhor disparar um evento
         if ($this->status->isPaid()) {
-            throw new \DomainException('Order is already paid.');
-        } else if ($this->status->isCanceled()) {
-            throw new \DomainException('Order is canceled.');
+            throw new DomainException('Order is already paid!');
+        } elseif ($this->status->isCanceled()) {
+            throw new DomainException('Order is canceled!');
         }
 
-        $this->invoice = $invoice;
-        $this->delivery = $delivery;
+        $order = new self($command->orderId);
+
+        $orderPaid = new OrderPaid(
+            orderId: $command->orderId,
+            invoice: $command->invoice,
+            paidAt: $command->paidAt
+        );
+        $order->recordThat($orderPaid);
+
+        return $order;
+    }
+
+    public function applyOrderPlaced(OrderPlaced $event): void
+    {
+        $this->customerId = $event->customerId();
+        $this->status = $event->status();
+        $this->items = $event->items();
+        $this->total = $event->total();
+        $this->placedAt = $event->placedAt();
+    }
+
+    public function applyOrderPaid(OrderPaid $event): void
+    {
         $this->status = OrderStatus::paid();
+        $this->invoice = $event->invoice();
+        $this->paidAt = $event->paidAt();
     }
 
-    public function cancel(): void
+    public function orderId(): ?OrderId
     {
-        if ($this->status->isCanceled()) {
-            throw new \DomainException('Order is canceled.');
-        }
-
-        $this->status = OrderStatus::canceled();
+        return $this->aggregateRootId;
     }
 
-    public function id(): OrderId
-    {
-        return $this->id;
-    }
-
-    public function customerId(): CustomerId
+    public function customerId(): ?CustomerId
     {
         return $this->customerId;
     }
 
-    public function status(): OrderStatus
+    public function status(): ?OrderStatus
     {
         return $this->status;
     }
 
-    /**
-     * @return OrderItem[]
-     */
-    public function items(): array
+    public function items(): ?array
     {
         return $this->items;
     }
 
-    public function total(): Money
+    public function total(): ?Money
     {
         return $this->total;
     }
@@ -153,5 +122,15 @@ final class Order
     public function delivery(): ?Delivery
     {
         return $this->delivery;
+    }
+
+    public function placedAt(): ?DateTimeImmutable
+    {
+        return $this->placedAt;
+    }
+
+    public function paidAt(): ?DateTimeImmutable
+    {
+        return $this->paidAt;
     }
 }

@@ -4,7 +4,7 @@ namespace Domain\_Shared\Abstractions;
 
 use Ramsey\Uuid\Uuid;
 
-abstract class StronglyTypedId
+abstract class AggregateRootId implements \EventSauce\EventSourcing\AggregateRootId
 {
     private function __construct(private readonly string $value)
     {
@@ -15,9 +15,9 @@ abstract class StronglyTypedId
         return new static(Uuid::uuid4()->toString());
     }
 
-    public static function fromString(string $id): static
+    public static function fromString(string $aggregateRootId): static
     {
-        return new static($id);
+        return new static($aggregateRootId);
     }
 
     public function value(): string

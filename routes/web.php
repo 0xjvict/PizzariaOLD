@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Order\OrderController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,4 +16,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('welcome');
+});
+
+Route::controller(OrderController::class)->group(function () {
+    Route::get('/place-order', 'placeOrder');
+    Route::get('/pay-order/{orderId}', 'payOrder');
+    Route::get('/retrieve-order/{orderId}', 'retrieveOrder');
 });

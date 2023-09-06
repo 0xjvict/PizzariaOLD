@@ -4,12 +4,16 @@ namespace Domain\Order\ValueObjects;
 
 final class OrderStatus
 {
+    private readonly string $value;
+
     public const PENDING = 'pending';
     public const PAID = 'paid';
     public const CANCELED = 'canceled';
 
-    private function __construct(private readonly string $value)
+    private function __construct(string $value)
     {
+        $this->validate($value);
+        $this->value = $value;
     }
 
     public static function pending(): self
@@ -25,6 +29,11 @@ final class OrderStatus
     public static function canceled(): self
     {
         return new self(self::CANCELED);
+    }
+
+    public static function fromString(string $status): self
+    {
+        return new self($status);
     }
 
     public function isPending(): bool
@@ -47,8 +56,20 @@ final class OrderStatus
         return $this->value;
     }
 
+    public function toString(): string
+    {
+        return $this->value;
+    }
+
     public function __toString(): string
     {
         return $this->value;
+    }
+
+    private function validate(string $value): void
+    {
+        if (!in_array($value, [self::PENDING, self::PAID, self::CANCELED])) {
+            throw new \InvalidArgumentException('Invalid order status.');
+        }
     }
 }

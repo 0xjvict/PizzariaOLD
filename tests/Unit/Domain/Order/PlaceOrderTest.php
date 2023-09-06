@@ -1,108 +1,118 @@
 <?php
 
+namespace Tests\Unit\Domain\Order;
+
+use Application\Order\UseCases\PayOrder\PayOrderCommand;
+use Application\Order\UseCases\PlaceOrder\PlaceOrderCommand;
+use DateTimeImmutable;
 use Domain\_Shared\ValueObjects\BrickMoney;
 use Domain\Customer\ValueObjects\CustomerId;
-use Domain\Order\Entities\Delivery;
 use Domain\Order\Entities\Invoice;
 use Domain\Order\Entities\Order;
 use Domain\Order\Entities\OrderItem;
-use Domain\Order\ValueObjects\OrderId;
-use Domain\Order\ValueObjects\ShippingAddress;
+use Domain\Order\Events\OrderPaid;
+use Domain\Order\Events\OrderPlaced;
+use Domain\Order\ValueObjects\OrderStatus;
 use Domain\Product\ValueObjects\ProductId;
 
-$faker = Faker\Factory::create('pt_BR');
+final class PlaceOrderTest extends PlaceOrderTestCase
+{
+    public function test_place_an_order(): void
+    {
+        $orderId = $this->aggregateRootId();
+        $customerId = CustomerId::generate();
 
-it('should place an order', function () use ($faker) {
-    $items = [
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 1',
-            BrickMoney::createFromBrl('100.0'),
-            1
-        ),
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 2',
-            BrickMoney::createFromBrl('200.0'),
-            2
-        ),
-    ];
+        $items = [
+            OrderItem::create(
+                ProductId::generate(),
+                'Product 1',
+                BrickMoney::createFromBrl('100.0'),
+                1
+            ),
+            OrderItem::create(
+                ProductId::generate(),
+                'Product 2',
+                BrickMoney::createFromBrl('200.0'),
+                2
+            ),
+        ];
 
-    $customerId = CustomerId::generate();
-    $order = Order::place($customerId, $items);
+        $now = (new DateTimeImmutable())->format(DATE_ATOM);
+        $placedAt = DateTimeImmutable::createFromFormat(DATE_ATOM, $now);
 
-    expect($order->id())->toBeInstanceOf(OrderId::class);
-    expect($order->customerId())->toBe($customerId);
-    expect($order->status()->value())->toBe('pending');
-    expect($order->items())->toBe($items);
-    expect($order->total()->amount())->toBe(BrickMoney::createFromBrl('500.0')->amount());
-});
+        $this->when(
+            new PlaceOrderCommand(
+                orderId: $orderId,
+                customerId: $customerId,
+                items: $items,
+                placedAt: $placedAt
+            )
+        )->then(
+            new OrderPlaced(
+                orderId: $orderId,
+                customerId: $customerId,
+                status: OrderStatus::pending(),
+                items: $items,
+                total: BrickMoney::createFromBrl('500.0'),
+                placedAt: $placedAt
+            )
+        );
+    }
 
-it('should pay an order', function () use ($faker) {
-    $items = [
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 1',
-            BrickMoney::createFromBrl('100.0'),
-            1
-        ),
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 2',
-            BrickMoney::createFromBrl('200.0'),
-            2
-        ),
-    ];
+    public function test_pay_an_order(): void
+    {
+        $order = $this->placeAnOrder();
+        $invoice = Invoice::create(
+            orderId: $order->orderId(),
+            urlXml: 'https://www.w3schools.com/xml/note.xml',
+            urlDanfe: 'https://www.w3schools.com/xml/note.xml'
+        );
 
-    $customerId = CustomerId::generate();
-    $order = Order::place($customerId, $items);
+        $this->when(
+            new PayOrderCommand(
+                orderId: $order->orderId(),
+                invoice: $invoice,
+                paidAt: $order->placedAt()
+            )
+        )->then(
+            new OrderPaid(
+                orderId: $order->orderId(),
+                invoice: $invoice,
+                paidAt: $order->placedAt()
+            )
+        );
+    }
 
-    $invoice = Invoice::create(
-        orderId: $order->id(),
-        urlXml: 'https://www.w3schools.com/xml/note.xml',
-        urlDanfe: 'https://www.w3schools.com/xml/note.xml'
-    );
+    private function placeAnOrder(): Order
+    {
+        $items = [
+            OrderItem::create(
+                ProductId::generate(),
+                'Product 1',
+                BrickMoney::createFromBrl('100.0'),
+                1
+            ),
+            OrderItem::create(
+                ProductId::generate(),
+                'Product 2',
+                BrickMoney::createFromBrl('200.0'),
+                2
+            ),
+        ];
 
-    $address = new ShippingAddress(
-        street: $faker->streetName(),
-        number: $faker->buildingNumber(),
-        complement: 'Complement',
-        district: $city = $faker->city(),
-        city: $city,
-        state: 'SP',
-        country: $faker->countryCode(),
-        zipCode: $faker->postcode(),
-    );
+        $now = (new DateTimeImmutable())->format(DATE_ATOM);
+        $placedAt = DateTimeImmutable::createFromFormat(DATE_ATOM, $now);
 
-    $delivery = Delivery::create(trackingCode: $faker->uuid(), shippingAddress: $address);
+        $command = new PlaceOrderCommand(
+            orderId: $this->aggregateRootId(),
+            customerId: CustomerId::generate(),
+            items: $items,
+            placedAt: $placedAt
+        );
+        $order = $this->repository->retrieve($command->orderId);
+        $order = $order->place($command);
+        $this->repository->persist($order);
 
-    $order->pay(invoice: $invoice, delivery: $delivery);
-
-    expect($order->status()->value())->toBe('paid');
-    expect($order->invoice())->toBe($invoice);
-    expect($order->delivery())->toBe($delivery);
-});
-
-it('should cancel an order after be placed', function () use ($faker) {
-    $items = [
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 1',
-            BrickMoney::createFromBrl('100.0'),
-            1
-        ),
-        OrderItem::create(
-            ProductId::generate(),
-            'Product 2',
-            BrickMoney::createFromBrl('200.0'),
-            2
-        ),
-    ];
-
-    $customerId = CustomerId::generate();
-    $order = Order::place($customerId, $items);
-
-    $order->cancel();
-
-    expect($order->status()->value())->toBe('canceled');
-});
+        return $this->repository->retrieve($command->orderId);
+    }
+}

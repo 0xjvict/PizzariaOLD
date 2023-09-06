@@ -2,10 +2,9 @@
 
 namespace Domain\Order\ValueObjects;
 
-use Domain\_Shared\Abstractions\StronglyTypedId;
+use Domain\_Shared\Abstractions\AggregateRootId;
 
-
-final class OrderId extends StronglyTypedId
+final class OrderId extends AggregateRootId
 {
 
 }

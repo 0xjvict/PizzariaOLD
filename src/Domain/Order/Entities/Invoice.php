@@ -51,6 +51,16 @@ final class Invoice
         );
     }
 
+    public static function fromArray(array $invoice): Invoice
+    {
+        return new self(
+            id: InvoiceId::fromString($invoice['id']),
+            orderId: OrderId::fromString($invoice['order_id']),
+            urlXml: $invoice['url_xml'],
+            urlDanfe: $invoice['url_danfe'],
+        );
+    }
+
     private static function validateUrlXml(string $urlXml): void
     {
         if (filter_var($urlXml, FILTER_VALIDATE_URL) === false) {
@@ -87,5 +97,15 @@ final class Invoice
     public function urlDanfe(): string
     {
         return $this->urlDanfe;
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id->toString(),
+            'order_id' => $this->orderId->toString(),
+            'url_xml' => $this->urlXml,
+            'url_danfe' => $this->urlDanfe,
+        ];
     }
 }

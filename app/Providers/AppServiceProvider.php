@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use Domain\Order\Repositories\OrderRepository;
 use Illuminate\Support\ServiceProvider;
+use Infrastructure\Order\Persistence\IlluminateOrderRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,7 +13,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            OrderRepository::class,
+            IlluminateOrderRepository::class
+        );
     }
 
     /**

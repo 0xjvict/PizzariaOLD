@@ -3,6 +3,7 @@
 namespace Domain\Order\Entities;
 
 use Domain\_Shared\Abstractions\Money;
+use Domain\_Shared\ValueObjects\BrickMoney;
 use Domain\Order\ValueObjects\OrderItemId;
 use Domain\Product\ValueObjects\ProductId;
 
@@ -45,12 +46,24 @@ final class OrderItem
     ): self
     {
         return new self(
-            $id,
-            $productId,
-            $name,
-            $price,
-            $quantity,
-            $price->multiply($quantity),
+            id: $id,
+            productId: $productId,
+            name: $name,
+            price: $price,
+            quantity: $quantity,
+            subTotal: $price->multiply($quantity),
+        );
+    }
+
+    public static function fromArray(array $item): self
+    {
+        return new self(
+            OrderItemId::fromString($item['id']),
+            ProductId::fromString($item['product_id']),
+            $item['name'],
+            BrickMoney::createFromBrl($item['price']),
+            $item['quantity'],
+            BrickMoney::createFromBrl($item['sub_total']),
         );
     }
 
@@ -82,5 +95,17 @@ final class OrderItem
     public function subTotal(): Money
     {
         return $this->subTotal;
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'id' => $this->id->toString(),
+            'product_id' => $this->productId->toString(),
+            'name' => $this->name,
+            'price' => $this->price->amount(),
+            'quantity' => $this->quantity,
+            'sub_total' => $this->subTotal->amount(),
+        ];
     }
 }
