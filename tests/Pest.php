@@ -14,7 +14,7 @@
 uses(
     Tests\TestCase::class,
     // Illuminate\Foundation\Testing\RefreshDatabase::class,
-)->in('Feature');
+)->in('Integration', 'Unit');
 
 /*
 |--------------------------------------------------------------------------
@@ -42,7 +42,7 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function faker(): \Faker\Generator
 {
-    // ..
+    return \Faker\Factory::create('pt_BR');
 }
