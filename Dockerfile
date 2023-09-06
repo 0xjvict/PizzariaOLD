@@ -7,3 +7,6 @@ RUN apt-get update \
     && apt-get install git -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
+
+# Add aliases to .bashrc
+RUN echo 'alias a="php artisan"' >> ~/.bashrc
